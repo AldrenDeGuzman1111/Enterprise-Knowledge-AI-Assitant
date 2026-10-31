@@ -6,7 +6,7 @@ cache**, **Langfuse** tracing, a **FastAPI** service with a **Streamlit** UI, a 
 evaluation package, and a public **Hugging Face** deployment with Neo4j embedded in the
 container.
 
-> **Live demo:** https://nitishgalat-enterprise-knowledge-assistant.hf.space
+> **Live demo:** https://aldrendeguzman-enterprise-knowledge-assistant.hf.space
 > (free tier: sleeps after 48 h idle; first visit after that takes ~41 s to boot)
 >
 > **Course:** [docs/course/README.md](docs/course/README.md) — 16 beginner chapters that
