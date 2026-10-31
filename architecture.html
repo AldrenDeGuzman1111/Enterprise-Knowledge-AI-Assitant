@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enterprise Knowledge AI Assistant — Architecture Document</title>
+<style>
+  :root {
+    --brand: #3f8ea0;
+    --brand-dark: #2b6675;
+    --ink: #1d2733;
+    --muted: #5b6876;
+    --line: #d7dee6;
+    --bg: #f5f8fb;
+    --card: #ffffff;
+    --api: #e8f1fb;     --api-b: #4a7fb5;
+    --guard: #eaf7ee;   --guard-b: #3c9a5f;
+    --agent: #f3ecfb;   --agent-b: #8a5cc2;
+    --ret: #e6f6f7;     --ret-b: #23959b;
+    --llm: #fff4e5;     --llm-b: #d98a1c;
+    --obs: #eef0f3;     --obs-b: #6b7684;
+    --ing: #fdf0f0;     --ing-b: #c45c5c;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+    color: var(--ink); background: var(--bg); line-height: 1.55;
+  }
+  header.hero {
+    background: linear-gradient(135deg, #1f4e5a 0%, var(--brand) 60%, #5fb3c4 100%);
+    color: #fff; padding: 48px 6vw 40px;
+  }
+  .hero .tag { display: inline-block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    background: rgba(255,255,255,.15); padding: 4px 10px; border-radius: 999px; }
+  .hero h1 { margin: 14px 0 8px; font-size: 34px; line-height: 1.2; }
+  .hero p { margin: 0; max-width: 900px; opacity: .92; font-size: 16px; }
+  .hero .meta { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .hero .meta span { background: rgba(0,0,0,.18); padding: 5px 12px; border-radius: 6px; font-size: 13px; }
+
+  nav.toc {
+    position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid var(--line);
+    padding: 10px 6vw; display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  nav.toc a { font-size: 13px; color: var(--brand-dark); text-decoration: none; padding: 4px 10px; border-radius: 6px; }
+  nav.toc a:hover { background: var(--api); }
+
+  main { padding: 10px 6vw 60px; max-width: 1500px; margin: 0 auto; }
+  section { margin-top: 42px; }
+  h2 { font-size: 24px; margin: 0 0 6px; color: var(--brand-dark); display: flex; align-items: center; gap: 10px; }
+  h2 .num { background: var(--brand); color: #fff; font-size: 13px; border-radius: 6px; padding: 2px 8px; }
+  h3 { font-size: 17px; margin: 22px 0 8px; }
+  .lead { color: var(--muted); margin: 0 0 18px; max-width: 1000px; }
+
+  .grid { display: grid; gap: 16px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+  .card h4 { margin: 0 0 8px; font-size: 15px; }
+  .card ul { margin: 0; padding-left: 18px; }
+  .card li { margin: 3px 0; }
+  .card.accent { border-top: 4px solid var(--brand); }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+    background: var(--api); color: var(--api-b); margin: 2px 4px 2px 0; }
+  .pill.g { background: var(--guard); color: var(--guard-b); }
+  .pill.p { background: var(--agent); color: var(--agent-b); }
+  .pill.t { background: var(--ret); color: var(--ret-b); }
+  .pill.o { background: var(--llm); color: var(--llm-b); }
+  .pill.r { background: var(--ing); color: var(--ing-b); }
+  .pill.x { background: var(--obs); color: var(--obs-b); }
+
+  .diagram { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; overflow-x: auto; }
+  .diagram svg { display: block; min-width: 1100px; width: 100%; height: auto; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+  .legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; border: 2px solid; }
+
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: #eef4f7; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--brand-dark); }
+  tr:last-child td { border-bottom: none; }
+  code, pre { font-family: "Cascadia Code", Consolas, monospace; font-size: 13px; }
+  pre { background: #0f1b24; color: #d6e6ef; padding: 16px 18px; border-radius: 10px; overflow-x: auto; margin: 0; line-height: 1.5; }
+  pre .k { color: #7fd1e0; } pre .str { color: #b5e08a; } pre .c { color: #6f8796; }
+
+  .flow { display: flex; flex-wrap: wrap; gap: 0; align-items: stretch; }
+  .flow .step { flex: 1 1 140px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px; position: relative; margin: 6px 18px 6px 0; }
+  .flow .step:not(:last-child)::after { content: "➜"; position: absolute; right: -17px; top: 50%; transform: translateY(-50%); color: var(--brand); font-size: 15px; }
+  .flow .step b { display: block; font-size: 13px; margin-bottom: 4px; }
+  .flow .step small { color: var(--muted); font-size: 12px; display: block; line-height: 1.4; }
+  .flow .step .n { font-size: 11px; color: #fff; background: var(--brand); border-radius: 4px; padding: 0 6px; margin-bottom: 6px; display: inline-block; }
+
+  .callout { border-left: 4px solid var(--brand); background: #eaf4f6; padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 14px 0; font-size: 14px; }
+  .callout.warn { border-color: var(--llm-b); background: var(--llm); }
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; padding: 30px; border-top: 1px solid var(--line); }
+
+  svg text { font-family: "Segoe UI", Inter, system-ui, sans-serif; }
+  @media print { nav.toc { display: none; } section { break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="tag">Module 14 · Capstone · Architecture Document</span>
+  <h1>AI-Powered Enterprise Knowledge Assistant</h1>
+  <p>A production-grade, full-stack GenAI application combining <b>advanced hybrid RAG</b> (vector + graph + re-ranking),
+     <b>agentic tool use with LangGraph</b>, <b>multi-layered guardrails</b>, and <b>production infrastructure</b>
+     (FastAPI, Langfuse, semantic caching, model routing).</p>
+  <div class="meta">
+    <span>Team: AI Platform Engineering</span>
+    <span>Domains: Engineering · Operations · Compliance · Customer Support</span>
+    <span>Data: dummy / public sources</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#overview">1. Overview</a>
+  <a href="#arch">2. System Architecture</a>
+  <a href="#flow">3. Request Lifecycle</a>
+  <a href="#ingest">4. Data Ingestion</a>
+  <a href="#retrieval">5. Hybrid Retrieval</a>
+  <a href="#agent">6. LangGraph Agent</a>
+  <a href="#guard">7. Guardrails</a>
+  <a href="#infra">8. Production Infra</a>
+  <a href="#eval">9. Observability &amp; Evaluation</a>
+  <a href="#stack">10. Tech Stack</a>
+  <a href="#trace">11. Traceability</a>
+  <a href="#structure">12. Project Structure</a>
+  <a href="#roadmap">13. Implementation Plan</a>
+</nav>
+
+<main>
+
+<!-- ============================ 1. OVERVIEW ============================ -->
+<section id="overview">
+  <h2><span class="num">1</span> Business Problem &amp; Objective</h2>
+  <p class="lead">The enterprise has thousands of internal documents (policy PDFs, technical manuals, SOPs, incident reports,
+    KB articles, structured database tables, and cross-system entity relationships). Employees cannot reliably find accurate answers.</p>
+
+  <div class="grid g2">
+    <div class="card accent">
+      <h4>Leadership Challenges</h4>
+      <ul>
+        <li>Employees struggle to find accurate information quickly</li>
+        <li>Knowledge is scattered across disconnected systems</li>
+        <li>Existing search fails on complex, <b>multi-hop</b> queries</li>
+        <li>High dependency on internal experts slows decision-making</li>
+        <li>No mechanism to validate AI responses for safety &amp; compliance</li>
+        <li>Lack of observability and evaluation in AI systems</li>
+      </ul>
+    </div>
+    <div class="card accent">
+      <h4>Objective — the assistant must:</h4>
+      <ul>
+        <li>Retrieve accurate, <b>cited</b> information from enterprise data</li>
+        <li>Combine <b>vector + graph</b> retrieval with re-ranking</li>
+        <li>Use <b>agent-based reasoning</b> and tool execution</li>
+        <li>Apply <b>multi-layered guardrails</b> (input → output)</li>
+        <li>Provide <b>observability, evaluation and performance monitoring</b></li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Stakeholders</h3>
+  <table>
+    <tr><th>Stakeholder</th><th>Requirement</th><th>How the architecture addresses it</th></tr>
+    <tr><td>CTO</td><td>Scalable, production-ready architecture</td><td>Stateless FastAPI service, pluggable stores, model routing, semantic cache</td></tr>
+    <tr><td>Engineering Team</td><td>Accurate technical answers with citations</td><td>Hybrid retrieval + cross-encoder re-ranking, mandatory citation schema</td></tr>
+    <tr><td>Operations Team</td><td>Quick SOP retrieval</td><td>Metadata filters (doc_type = SOP), BM25 for exact procedure IDs, caching</td></tr>
+    <tr><td>Compliance Team</td><td>Safe and policy-compliant outputs</td><td>Input/output guardrails, PII masking, hallucination check, safety scorecard</td></tr>
+    <tr><td>AI Platform Team</td><td>Monitoring, evaluation, optimization</td><td>Langfuse traces, Promptfoo regression suite, RAGAS metrics, load tests</td></tr>
+    <tr><td>End Users</td><td>Fast, reliable responses</td><td>Semantic cache, fast-model routing for simple queries, session memory</td></tr>
+  </table>
+
+  <h3>Core Business Challenges → Architectural Answers</h3>
+  <div class="grid g3">
+    <div class="card"><h4>1 · Knowledge Retrieval</h4><p>Vector search alone fails for multi-hop reasoning.</p><span class="pill t">Hybrid vector + BM25 + graph</span><span class="pill t">Re-ranker</span></div>
+    <div class="card"><h4>2 · Context Understanding</h4><p>Answers lack grounding/citations; long docs under-used.</p><span class="pill t">Structure-aware chunking</span><span class="pill p">Citation-enforced generation</span></div>
+    <div class="card"><h4>3 · Decision-Making Delays</h4><p>Manual searches; no unified assistant.</p><span class="pill p">LangGraph agent</span><span class="pill p">SQL / Web / Python tools</span></div>
+    <div class="card"><h4>4 · Safety &amp; Compliance</h4><p>PII exposure; hallucinated or unsafe outputs.</p><span class="pill g">PII detection</span><span class="pill g">Injection detection</span><span class="pill g">Hallucination check</span></div>
+    <div class="card"><h4>5 · Lack of Observability</h4><p>No visibility into behaviour, latency, failures.</p><span class="pill x">Langfuse tracing</span><span class="pill x">Token &amp; cost tracking</span></div>
+  </div>
+</section>
+
+<!-- ============================ 2. ARCHITECTURE ============================ -->
+<section id="arch">
+  <h2><span class="num">2</span> High-Level System Architecture</h2>
+  <p class="lead">Online request path (top), hybrid retrieval layer (middle), offline ingestion pipeline and
+    observability / evaluation plane (bottom). Every component emits Langfuse spans tied to a single <code>trace_id</code>.</p>
+
+  <div class="diagram">
+  <svg viewBox="0 0 1240 900" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#4b5b6b"/>
+      </marker>
+      <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#3c9a5f"/>
+      </marker>
+      <style>
+        .zone { rx: 14; stroke-width: 1.5; stroke-dasharray: 6 4; }
+        .ztitle { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; }
+        .box { rx: 8; stroke-width: 1.6; }
+        .t { font-size: 13px; font-weight: 600; fill: #1d2733; }
+        .s { font-size: 10.5px; fill: #5b6876; }
+        .e { fill: none; stroke: #4b5b6b; stroke-width: 1.6; marker-end: url(#arr); }
+        .ed { fill: none; stroke: #4b5b6b; stroke-width: 1.4; stroke-dasharray: 5 4; marker-end: url(#arr); }
+        .eg { fill: none; stroke: #3c9a5f; stroke-width: 1.6; stroke-dasharray: 5 4; marker-end: url(#arrG); }
+        .lbl { font-size: 10.5px; fill: #4b5b6b; font-style: italic; }
+      </style>
+    </defs>
+
+    <!-- ===== USER ===== -->
+    <rect x="20" y="80" width="110" height="55" class="box" fill="#fff" stroke="#1d2733"/>
+    <text x="75" y="104" text-anchor="middle" class="t">👤 User</text>
+    <text x="75" y="121" text-anchor="middle" class="s">Web UI / API client</text>
+
+    <!-- ===== API LAYER ===== -->
+    <rect x="160" y="40" width="230" height="210" class="zone" fill="#e8f1fb" stroke="#4a7fb5"/>
+    <text x="175" y="62" class="ztitle" fill="#4a7fb5">API LAYER · FASTAPI</text>
+    <rect x="175" y="80" width="200" height="55" class="box" fill="#fff" stroke="#4a7fb5"/>
+    <text x="275" y="103" text-anchor="middle" class="t">FastAPI Service</text>
+    <text x="275" y="120" text-anchor="middle" class="s">POST /chat · /ingest · GET /health</text>
+    <rect x="175" y="150" width="95" height="50" class="box" fill="#fff" stroke="#4a7fb5"/>
+    <text x="222" y="172" text-anchor="middle" class="t">Session</text>
+    <text x="222" y="187" text-anchor="middle" class="s">chat memory</text>
+    <rect x="280" y="150" width="95" height="50" class="box" fill="#fff" stroke="#4a7fb5"/>
+    <text x="327" y="172" text-anchor="middle" class="t">Semantic</text>
+    <text x="327" y="187" text-anchor="middle" class="s">cache (embed sim)</text>
+    <text x="175" y="228" class="s">Rate limit · request schema (Pydantic)</text>
+
+    <!-- ===== INPUT GUARDRAILS ===== -->
+    <rect x="420" y="40" width="200" height="210" class="zone" fill="#eaf7ee" stroke="#3c9a5f"/>
+    <text x="435" y="62" class="ztitle" fill="#3c9a5f">INPUT GUARDRAILS</text>
+    <rect x="435" y="80" width="170" height="32" class="box" fill="#fff" stroke="#3c9a5f"/>
+    <text x="520" y="101" text-anchor="middle" class="s" style="fill:#1d2733">Schema &amp; length validation</text>
+    <rect x="435" y="120" width="170" height="32" class="box" fill="#fff" stroke="#3c9a5f"/>
+    <text x="520" y="141" text-anchor="middle" class="s" style="fill:#1d2733">Prompt-injection detection</text>
+    <rect x="435" y="160" width="170" height="32" class="box" fill="#fff" stroke="#3c9a5f"/>
+    <text x="520" y="181" text-anchor="middle" class="s" style="fill:#1d2733">PII detection &amp; masking</text>
+    <rect x="435" y="200" width="170" height="32" class="box" fill="#fff" stroke="#3c9a5f"/>
+    <text x="520" y="221" text-anchor="middle" class="s" style="fill:#1d2733">Topic / policy filter</text>
+
+    <!-- ===== ORCHESTRATION ===== -->
+    <rect x="650" y="40" width="570" height="400" class="zone" fill="#f3ecfb" stroke="#8a5cc2"/>
+    <text x="665" y="62" class="ztitle" fill="#8a5cc2">LANGGRAPH AGENT ORCHESTRATION</text>
+
+    <rect x="670" y="80" width="140" height="55" class="box" fill="#fff" stroke="#8a5cc2"/>
+    <text x="740" y="103" text-anchor="middle" class="t">Query Router</text>
+    <text x="740" y="120" text-anchor="middle" class="s">intent · complexity</text>
+
+    <rect x="850" y="80" width="160" height="55" class="box" fill="#fff" stroke="#8a5cc2"/>
+    <text x="930" y="103" text-anchor="middle" class="t">Agent / Planner</text>
+    <text x="930" y="120" text-anchor="middle" class="s">ReAct multi-step reasoning</text>
+
+    <rect x="1050" y="80" width="150" height="55" class="box" fill="#fff" stroke="#8a5cc2"/>
+    <text x="1125" y="103" text-anchor="middle" class="t">Tool Node</text>
+    <text x="1125" y="120" text-anchor="middle" class="s">tool selection &amp; exec</text>
+
+    <rect x="1050" y="150" width="150" height="36" class="box" fill="#faf6ff" stroke="#8a5cc2"/>
+    <text x="1125" y="172" text-anchor="middle" class="s" style="fill:#1d2733">🌐 Web Search</text>
+    <rect x="1050" y="192" width="150" height="36" class="box" fill="#faf6ff" stroke="#8a5cc2"/>
+    <text x="1125" y="214" text-anchor="middle" class="s" style="fill:#1d2733">🗄️ SQL Query Tool</text>
+    <rect x="1050" y="234" width="150" height="36" class="box" fill="#faf6ff" stroke="#8a5cc2"/>
+    <text x="1125" y="256" text-anchor="middle" class="s" style="fill:#1d2733">🐍 Python Execution (sandbox)</text>
+    <rect x="1050" y="276" width="150" height="36" class="box" fill="#faf6ff" stroke="#8a5cc2"/>
+    <text x="1125" y="298" text-anchor="middle" class="s" style="fill:#1d2733">🔌 MCP Integrations</text>
+
+    <rect x="670" y="170" width="140" height="55" class="box" fill="#fff4e5" stroke="#d98a1c"/>
+    <text x="740" y="193" text-anchor="middle" class="t">Model Router</text>
+    <text x="740" y="210" text-anchor="middle" class="s">cost / latency aware</text>
+    <rect x="670" y="245" width="140" height="36" class="box" fill="#fff" stroke="#d98a1c"/>
+    <text x="740" y="267" text-anchor="middle" class="s" style="fill:#1d2733">⚡ Fast LLM (simple)</text>
+    <rect x="670" y="287" width="140" height="36" class="box" fill="#fff" stroke="#d98a1c"/>
+    <text x="740" y="309" text-anchor="middle" class="s" style="fill:#1d2733">🧠 Strong LLM (complex)</text>
+
+    <rect x="850" y="200" width="160" height="55" class="box" fill="#fff" stroke="#8a5cc2"/>
+    <text x="930" y="223" text-anchor="middle" class="t">Response Generator</text>
+    <text x="930" y="240" text-anchor="middle" class="s">grounded answer + citations</text>
+
+    <rect x="850" y="290" width="160" height="55" class="box" fill="#eaf7ee" stroke="#3c9a5f"/>
+    <text x="930" y="313" text-anchor="middle" class="t">Hallucination Check</text>
+    <text x="930" y="330" text-anchor="middle" class="s">faithfulness vs. context</text>
+
+    <!-- ===== OUTPUT GUARDRAILS ===== -->
+    <rect x="420" y="290" width="200" height="160" class="zone" fill="#eaf7ee" stroke="#3c9a5f"/>
+    <text x="435" y="310" class="ztitle" fill="#3c9a5f">OUTPUT GUARDRAILS</text>
+    <rect x="435" y="322" width="170" height="32" class="box" fill="#fff" stroke="#3c9a5f"/>
+    <text x="520" y="343" text-anchor="middle" class="s" style="fill:#1d2733">PII re-scan &amp; redaction</text>
+    <rect x="435" y="362" width="170" height="32" class="box" fill="#fff" stroke="#3c9a5f"/>
+    <text x="520" y="383" text-anchor="middle" class="s" style="fill:#1d2733">Toxicity / unsafe content</text>
+    <rect x="435" y="402" width="170" height="32" class="box" fill="#fff" stroke="#3c9a5f"/>
+    <text x="520" y="423" text-anchor="middle" class="s" style="fill:#1d2733">Policy &amp; citation compliance</text>
+
+    <!-- ===== RESPONSE ===== -->
+    <rect x="175" y="330" width="200" height="70" class="box" fill="#fff" stroke="#4a7fb5"/>
+    <text x="275" y="355" text-anchor="middle" class="t">Structured Response</text>
+    <text x="275" y="372" text-anchor="middle" class="s">answer · citations · confidence</text>
+    <text x="275" y="387" text-anchor="middle" class="s">tools_used · trace_id · latency</text>
+
+    <!-- ===== HYBRID RETRIEVAL ===== -->
+    <rect x="420" y="480" width="800" height="200" class="zone" fill="#e6f6f7" stroke="#23959b"/>
+    <text x="680" y="502" class="ztitle" fill="#23959b">HYBRID RETRIEVAL LAYER</text>
+    <rect x="440" y="512" width="200" height="34" class="box" fill="#fff" stroke="#23959b"/>
+    <text x="540" y="534" text-anchor="middle" class="s" style="fill:#1d2733"><tspan font-weight="700">Vector search</tspan> · ChromaDB</text>
+    <rect x="440" y="552" width="200" height="34" class="box" fill="#fff" stroke="#23959b"/>
+    <text x="540" y="574" text-anchor="middle" class="s" style="fill:#1d2733"><tspan font-weight="700">Keyword search</tspan> · BM25 text index</text>
+    <rect x="440" y="592" width="200" height="34" class="box" fill="#fff" stroke="#23959b"/>
+    <text x="540" y="614" text-anchor="middle" class="s" style="fill:#1d2733"><tspan font-weight="700">Graph traversal</tspan> · Neo4j (Cypher)</text>
+    <rect x="440" y="632" width="200" height="34" class="box" fill="#fff" stroke="#23959b"/>
+    <text x="540" y="654" text-anchor="middle" class="s" style="fill:#1d2733"><tspan font-weight="700">Metadata filter</tspan> · doc_type, dept, date</text>
+
+    <rect x="830" y="550" width="150" height="60" class="box" fill="#fff" stroke="#23959b"/>
+    <text x="905" y="575" text-anchor="middle" class="t">Fusion</text>
+    <text x="905" y="592" text-anchor="middle" class="s">Reciprocal Rank Fusion</text>
+    <rect x="1010" y="550" width="190" height="60" class="box" fill="#fff" stroke="#23959b"/>
+    <text x="1105" y="575" text-anchor="middle" class="t">Re-ranker</text>
+    <text x="1105" y="592" text-anchor="middle" class="s">cross-encoder · top-k</text>
+
+    <!-- ===== INGESTION ===== -->
+    <rect x="20" y="712" width="700" height="175" class="zone" fill="#fdf0f0" stroke="#c45c5c"/>
+    <text x="35" y="734" class="ztitle" fill="#c45c5c">OFFLINE INGESTION PIPELINE</text>
+    <rect x="30" y="750" width="105" height="120" class="box" fill="#fff" stroke="#c45c5c"/>
+    <text x="82" y="770" text-anchor="middle" class="t">Sources</text>
+    <text x="82" y="790" text-anchor="middle" class="s">Policy PDFs</text>
+    <text x="82" y="805" text-anchor="middle" class="s">Manuals · SOPs</text>
+    <text x="82" y="820" text-anchor="middle" class="s">MD / TXT · FAQ</text>
+    <text x="82" y="835" text-anchor="middle" class="s">CSV / SQL tables</text>
+    <text x="82" y="850" text-anchor="middle" class="s">Entity data</text>
+
+    <rect x="150" y="760" width="100" height="44" class="box" fill="#fff" stroke="#c45c5c"/>
+    <text x="200" y="779" text-anchor="middle" class="t" style="font-size:12px">Load &amp; Clean</text>
+    <text x="200" y="794" text-anchor="middle" class="s">normalize text</text>
+    <rect x="265" y="760" width="100" height="44" class="box" fill="#fff" stroke="#c45c5c"/>
+    <text x="315" y="779" text-anchor="middle" class="t" style="font-size:12px">Metadata</text>
+    <text x="315" y="794" text-anchor="middle" class="s">source, type, dept</text>
+    <rect x="380" y="760" width="90" height="44" class="box" fill="#fff" stroke="#c45c5c"/>
+    <text x="425" y="779" text-anchor="middle" class="t" style="font-size:12px">Chunking</text>
+    <text x="425" y="794" text-anchor="middle" class="s">semantic split</text>
+    <rect x="485" y="760" width="95" height="44" class="box" fill="#fff" stroke="#c45c5c"/>
+    <text x="532" y="779" text-anchor="middle" class="t" style="font-size:12px">Embeddings</text>
+    <text x="532" y="794" text-anchor="middle" class="s">batch encode</text>
+    <rect x="595" y="760" width="110" height="44" class="box" fill="#e6f6f7" stroke="#23959b"/>
+    <text x="650" y="779" text-anchor="middle" class="t" style="font-size:12px">ChromaDB</text>
+    <text x="650" y="794" text-anchor="middle" class="s">+ BM25 index</text>
+
+    <rect x="150" y="825" width="140" height="44" class="box" fill="#fff" stroke="#c45c5c"/>
+    <text x="220" y="844" text-anchor="middle" class="t" style="font-size:12px">Structured Loader</text>
+    <text x="220" y="859" text-anchor="middle" class="s">CSV → SQLite / Postgres</text>
+    <rect x="380" y="825" width="200" height="44" class="box" fill="#fff" stroke="#c45c5c"/>
+    <text x="480" y="844" text-anchor="middle" class="t" style="font-size:12px">Entity / Relation Extraction</text>
+    <text x="480" y="859" text-anchor="middle" class="s">LLM → (person)-[owns]-&gt;(system)</text>
+    <rect x="595" y="825" width="110" height="44" class="box" fill="#e6f6f7" stroke="#23959b"/>
+    <text x="650" y="844" text-anchor="middle" class="t" style="font-size:12px">Neo4j</text>
+    <text x="650" y="859" text-anchor="middle" class="s">knowledge graph</text>
+
+    <!-- ===== OBSERVABILITY & EVAL ===== -->
+    <rect x="740" y="712" width="480" height="175" class="zone" fill="#eef0f3" stroke="#6b7684"/>
+    <text x="755" y="734" class="ztitle" fill="#6b7684">OBSERVABILITY &amp; EVALUATION PLANE</text>
+    <rect x="755" y="750" width="220" height="50" class="box" fill="#fff" stroke="#6b7684"/>
+    <text x="865" y="771" text-anchor="middle" class="t">🔭 Langfuse Tracing</text>
+    <text x="865" y="788" text-anchor="middle" class="s">spans · latency · tokens · cost · errors</text>
+    <rect x="990" y="750" width="215" height="50" class="box" fill="#fff" stroke="#6b7684"/>
+    <text x="1097" y="771" text-anchor="middle" class="t">🧪 Promptfoo</text>
+    <text x="1097" y="788" text-anchor="middle" class="s">30+ regression test cases</text>
+    <rect x="755" y="815" width="140" height="50" class="box" fill="#fff" stroke="#6b7684"/>
+    <text x="825" y="836" text-anchor="middle" class="t">📊 RAGAS</text>
+    <text x="825" y="853" text-anchor="middle" class="s">retrieval quality</text>
+    <rect x="905" y="815" width="140" height="50" class="box" fill="#fff" stroke="#6b7684"/>
+    <text x="975" y="836" text-anchor="middle" class="t">🛡️ Safety Card</text>
+    <text x="975" y="853" text-anchor="middle" class="s">adversarial results</text>
+    <rect x="1055" y="815" width="150" height="50" class="box" fill="#fff" stroke="#6b7684"/>
+    <text x="1130" y="836" text-anchor="middle" class="t">⏱️ Load Tests</text>
+    <text x="1130" y="853" text-anchor="middle" class="s">latency · throughput</text>
+
+    <!-- ===== EDGES ===== -->
+    <path class="e" d="M130,107 H173"/>
+    <path class="e" d="M375,107 H433"/>
+    <path class="e" d="M620,107 H668"/>
+    <path class="e" d="M810,107 H848"/>
+    <path class="e" d="M1010,107 H1048"/>
+    <path class="e" d="M1125,135 V148"/>
+    <path class="e" d="M740,135 V168"/>
+    <path class="e" d="M740,225 V243"/>
+    <path class="e" d="M810,285 C830,285 830,228 848,228"/>
+    <path class="e" d="M930,135 V198"/>
+    <path class="e" d="M930,255 V288"/>
+    <!-- router -> retrieval -->
+    <path class="e" d="M800,135 V150 H830 V470 H540 V510"/>
+    <text x="836" y="462" class="lbl">hybrid query</text>
+    <!-- retrieval internals -->
+    <path class="e" d="M640,529 C740,529 740,570 828,572"/>
+    <path class="e" d="M640,569 C740,569 740,578 828,578"/>
+    <path class="e" d="M640,609 C740,609 740,584 828,584"/>
+    <path class="e" d="M640,649 C740,649 740,590 828,590"/>
+    <path class="e" d="M980,580 H1008"/>
+    <!-- reranker -> generator -->
+    <path class="e" d="M1105,550 V400 H1030 V228 H1012"/>
+    <text x="1036" y="392" class="lbl">top-k reranked context</text>
+    <!-- hallucination -> output guard -->
+    <path class="e" d="M930,345 V370 H622"/>
+    <text x="680" y="364" class="lbl">grounded draft</text>
+    <!-- output -> response -> user -->
+    <path class="e" d="M420,365 H377"/>
+    <path class="e" d="M175,365 H75 V137"/>
+    <!-- cache hit -->
+    <path class="eg" d="M327,200 V328"/>
+    <text x="333" y="290" class="lbl" style="fill:#3c9a5f">cache hit</text>
+    <!-- ingestion -->
+    <path class="e" d="M135,782 H148"/>
+    <path class="e" d="M250,782 H263"/>
+    <path class="e" d="M365,782 H378"/>
+    <path class="e" d="M470,782 H483"/>
+    <path class="e" d="M580,782 H593"/>
+    <path class="e" d="M135,847 H148"/>
+    <path class="e" d="M315,804 V847 H378"/>
+    <path class="e" d="M580,847 H593"/>
+    <path class="ed" d="M650,758 V684"/>
+    <text x="656" y="705" class="lbl">indexes feed retrieval</text>
+    <path class="ed" d="M220,825 V700 H1125 V314" style="stroke:#8a5cc2"/>
+    <text x="232" y="694" class="lbl" style="fill:#8a5cc2">SQL tool reads structured tables</text>
+  </svg>
+  <div class="legend">
+    <span><i style="background:#e8f1fb;border-color:#4a7fb5"></i>API layer</span>
+    <span><i style="background:#eaf7ee;border-color:#3c9a5f"></i>Guardrails</span>
+    <span><i style="background:#f3ecfb;border-color:#8a5cc2"></i>Agent orchestration</span>
+    <span><i style="background:#fff4e5;border-color:#d98a1c"></i>LLM / model routing</span>
+    <span><i style="background:#e6f6f7;border-color:#23959b"></i>Retrieval &amp; stores</span>
+    <span><i style="background:#fdf0f0;border-color:#c45c5c"></i>Offline ingestion</span>
+    <span><i style="background:#eef0f3;border-color:#6b7684"></i>Observability &amp; evaluation</span>
+  </div>
+  </div>
+</section>
+
+<!-- ============================ 3. REQUEST FLOW ============================ -->
+<section id="flow">
+  <h2><span class="num">3</span> End-to-End Request Lifecycle</h2>
+  <p class="lead">Mirrors the "End-to-End Implementation Blueprint — System Workflow" from the scenario. Every stage logs to the observability layer.</p>
+  <div class="flow">
+    <div class="step"><span class="n">1</span><b>User Query</b><small>Question sent to <code>POST /chat</code> with <code>session_id</code></small></div>
+    <div class="step"><span class="n">2</span><b>Input Guardrails</b><small>Validate, detect injection, mask PII, enforce policy</small></div>
+    <div class="step"><span class="n">3</span><b>Query Processing</b><small>Cache lookup, intent extraction, query rewrite, model routing</small></div>
+    <div class="step"><span class="n">4</span><b>Hybrid Retrieval</b><small>Vector + keyword + graph + metadata filters</small></div>
+    <div class="step"><span class="n">5</span><b>Re-ranking</b><small>RRF fusion → cross-encoder scores → top-k</small></div>
+    <div class="step"><span class="n">6</span><b>Agent Execution</b><small>(if needed) SQL, web search, Python, MCP tools</small></div>
+    <div class="step"><span class="n">7</span><b>LLM Generation</b><small>Synthesize grounded answer with citations</small></div>
+    <div class="step"><span class="n">8</span><b>Output Guardrails</b><small>Hallucination, PII, toxicity, policy checks</small></div>
+    <div class="step"><span class="n">9</span><b>Final Response</b><small>Structured JSON + <code>trace_id</code>, cached for reuse</small></div>
+  </div>
+
+  <h3>Sequence (happy path)</h3>
+  <div class="diagram">
+  <svg viewBox="0 0 1180 520" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3f4d5b"/></marker>
+      <style>
+        .ll { stroke: #b8c4cf; stroke-dasharray: 4 4; }
+        .hd { rx: 8; stroke-width: 1.5; }
+        .ht { font-size: 12.5px; font-weight: 700; fill: #1d2733; }
+        .m { stroke: #3f4d5b; stroke-width: 1.4; marker-end: url(#sa); }
+        .mr { stroke: #3f4d5b; stroke-width: 1.3; stroke-dasharray: 5 3; marker-end: url(#sa); }
+        .mt { font-size: 11px; fill: #33414f; }
+      </style>
+    </defs>
+    <!-- participants -->
+    <g>
+      <rect x="20"  y="10" width="110" height="36" class="hd" fill="#fff" stroke="#1d2733"/><text x="75" y="33" text-anchor="middle" class="ht">User</text>
+      <rect x="165" y="10" width="110" height="36" class="hd" fill="#e8f1fb" stroke="#4a7fb5"/><text x="220" y="33" text-anchor="middle" class="ht">FastAPI</text>
+      <rect x="310" y="10" width="120" height="36" class="hd" fill="#eaf7ee" stroke="#3c9a5f"/><text x="370" y="33" text-anchor="middle" class="ht">Guardrails</text>
+      <rect x="465" y="10" width="120" height="36" class="hd" fill="#e8f1fb" stroke="#4a7fb5"/><text x="525" y="33" text-anchor="middle" class="ht">Sem. Cache</text>
+      <rect x="620" y="10" width="130" height="36" class="hd" fill="#f3ecfb" stroke="#8a5cc2"/><text x="685" y="33" text-anchor="middle" class="ht">LangGraph Agent</text>
+      <rect x="785" y="10" width="120" height="36" class="hd" fill="#e6f6f7" stroke="#23959b"/><text x="845" y="33" text-anchor="middle" class="ht">Retriever</text>
+      <rect x="940" y="10" width="100" height="36" class="hd" fill="#fff4e5" stroke="#d98a1c"/><text x="990" y="33" text-anchor="middle" class="ht">LLM</text>
+      <rect x="1070" y="10" width="100" height="36" class="hd" fill="#eef0f3" stroke="#6b7684"/><text x="1120" y="33" text-anchor="middle" class="ht">Langfuse</text>
+    </g>
+    <line x1="75" y1="46" x2="75" y2="510" class="ll"/>
+    <line x1="220" y1="46" x2="220" y2="510" class="ll"/>
+    <line x1="370" y1="46" x2="370" y2="510" class="ll"/>
+    <line x1="525" y1="46" x2="525" y2="510" class="ll"/>
+    <line x1="685" y1="46" x2="685" y2="510" class="ll"/>
+    <line x1="845" y1="46" x2="845" y2="510" class="ll"/>
+    <line x1="990" y1="46" x2="990" y2="510" class="ll"/>
+    <line x1="1120" y1="46" x2="1120" y2="510" class="ll"/>
+
+    <line x1="75" y1="72" x2="218" y2="72" class="m"/><text x="82" y="66" class="mt">POST /chat {query, session_id}</text>
+    <line x1="220" y1="98" x2="1118" y2="98" class="mr"/><text x="900" y="92" class="mt">start trace (trace_id)</text>
+    <line x1="220" y1="124" x2="368" y2="124" class="m"/><text x="228" y="118" class="mt">validate_input()</text>
+    <line x1="370" y1="148" x2="222" y2="148" class="mr"/><text x="240" y="162" class="mt">sanitized query (PII masked)</text>
+    <line x1="220" y1="184" x2="523" y2="184" class="m"/><text x="380" y="178" class="mt">lookup(embedding)</text>
+    <line x1="525" y1="206" x2="222" y2="206" class="mr"/><text x="380" y="220" class="mt">miss</text>
+    <line x1="220" y1="240" x2="683" y2="240" class="m"/><text x="540" y="234" class="mt">graph.invoke(state)</text>
+    <line x1="685" y1="268" x2="843" y2="268" class="m"/><text x="692" y="262" class="mt">hybrid_search(q)</text>
+    <line x1="845" y1="292" x2="687" y2="292" class="mr"/><text x="700" y="306" class="mt">top-k reranked chunks</text>
+    <line x1="685" y1="326" x2="988" y2="326" class="m"/><text x="760" y="320" class="mt">generate(context, citations)</text>
+    <line x1="990" y1="350" x2="687" y2="350" class="mr"/><text x="780" y="364" class="mt">draft answer</text>
+    <line x1="685" y1="384" x2="988" y2="384" class="m"/><text x="760" y="378" class="mt">grade faithfulness</text>
+    <line x1="685" y1="412" x2="372" y2="412" class="m"/><text x="420" y="406" class="mt">validate_output()</text>
+    <line x1="370" y1="436" x2="222" y2="436" class="mr"/><text x="240" y="450" class="mt">safe answer</text>
+    <line x1="220" y1="466" x2="523" y2="466" class="m"/><text x="380" y="460" class="mt">store</text>
+    <line x1="220" y1="494" x2="77" y2="494" class="mr"/><text x="90" y="488" class="mt">200 {answer, citations, trace_id}</text>
+  </svg>
+  </div>
+</section>
+
+<!-- ============================ 4. INGESTION ============================ -->
+<section id="ingest">
+  <h2><span class="num">4</span> Data Layer &amp; Ingestion Pipeline</h2>
+  <p class="lead">Offline, idempotent pipeline (re-runnable via <code>POST /ingest</code> or CLI). Uses dummy or public data, as allowed by the scenario.</p>
+  <div class="grid g3">
+    <div class="card">
+      <h4><span class="pill r">Unstructured</span></h4>
+      <ul><li>PDF documents (policies, manuals)</li><li>Markdown / text files (SOPs, incident reports)</li><li>FAQ knowledge base</li></ul>
+      <p style="margin:8px 0 0;font-size:13px;color:var(--muted)">→ load, clean, chunk, embed → <b>ChromaDB</b> + BM25 index</p>
+    </div>
+    <div class="card">
+      <h4><span class="pill r">Structured</span></h4>
+      <ul><li>CSV / SQL tables (products, users, transactions)</li><li>Metadata tables</li></ul>
+      <p style="margin:8px 0 0;font-size:13px;color:var(--muted)">→ loaded into <b>SQLite / Postgres</b>; queried by the agent's read-only SQL tool</p>
+    </div>
+    <div class="card">
+      <h4><span class="pill r">Graph</span></h4>
+      <ul><li>Entities: people, systems, components</li><li>Relationships: <code>DEPENDS_ON</code>, <code>OWNS</code>, <code>RELATED_TO</code></li></ul>
+      <p style="margin:8px 0 0;font-size:13px;color:var(--muted)">→ LLM-based entity/relation extraction → <b>Neo4j</b>, with links back to source chunks</p>
+    </div>
+  </div>
+
+  <h3>Pipeline Steps</h3>
+  <table>
+    <tr><th>Stage</th><th>Details</th><th>Output</th></tr>
+    <tr><td>1. Load</td><td>PyPDF / Unstructured loaders for PDF, MD, TXT; pandas for CSV</td><td>Raw documents</td></tr>
+    <tr><td>2. Clean &amp; normalize</td><td>Strip headers/footers, fix whitespace &amp; encoding, de-duplicate</td><td>Clean text</td></tr>
+    <tr><td>3. Metadata extraction</td><td><code>doc_id, source, doc_type (policy|manual|sop|incident|faq), department, version, date, page</code></td><td>Filterable metadata</td></tr>
+    <tr><td>4. Chunking</td><td>Recursive / heading-aware split (~500–800 tokens, 10–15% overlap); parent-child links so long documents are used well</td><td>Chunks with <code>chunk_id</code></td></tr>
+    <tr><td>5. Embedding</td><td>Batch embeddings (e.g. <code>text-embedding-3-small</code> or <code>bge-small</code>)</td><td>Vectors in ChromaDB</td></tr>
+    <tr><td>6. Keyword index</td><td>BM25 over the same chunks for exact terms (error codes, SOP IDs)</td><td>BM25 index</td></tr>
+    <tr><td>7. Entity / relation extraction</td><td>LLM structured output → <code>(Entity)-[REL]-&gt;(Entity)</code> + <code>MENTIONED_IN</code> → Chunk</td><td>Neo4j graph</td></tr>
+    <tr><td>8. Validation</td><td>Spot-check retrieval on sample queries; Cypher sanity queries</td><td>Ingestion report</td></tr>
+  </table>
+
+  <h3>Graph Schema</h3>
+  <div class="diagram">
+  <svg viewBox="0 0 1100 230" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="ga" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#23959b"/></marker></defs>
+    <style>.n{stroke:#23959b;stroke-width:2;fill:#e6f6f7}.nt{font-size:13px;font-weight:700;fill:#1d2733}.r{stroke:#23959b;stroke-width:1.6;fill:none;marker-end:url(#ga)}.rt{font-size:11px;fill:#23959b;font-weight:600}</style>
+    <circle cx="110" cy="110" r="48" class="n"/><text x="110" y="115" text-anchor="middle" class="nt">Person</text>
+    <circle cx="380" cy="110" r="48" class="n"/><text x="380" y="115" text-anchor="middle" class="nt">System</text>
+    <circle cx="650" cy="110" r="48" class="n"/><text x="650" y="115" text-anchor="middle" class="nt">Component</text>
+    <circle cx="930" cy="110" r="48" class="n" style="fill:#fdf0f0;stroke:#c45c5c"/><text x="930" y="106" text-anchor="middle" class="nt">Document</text><text x="930" y="122" text-anchor="middle" style="font-size:10px;fill:#5b6876">/ Chunk</text>
+    <path d="M158,110 H330" class="r"/><text x="244" y="102" text-anchor="middle" class="rt">OWNS</text>
+    <path d="M428,110 H600" class="r"/><text x="514" y="102" text-anchor="middle" class="rt">DEPENDS_ON</text>
+    <path d="M410,72 C460,10 300,10 352,70" class="r"/><text x="380" y="22" text-anchor="middle" class="rt">RELATED_TO</text>
+    <path d="M698,110 H880" class="r"/><text x="790" y="102" text-anchor="middle" class="rt">MENTIONED_IN</text>
+    <path d="M405,152 C500,215 820,215 905,152" class="r"/><text x="650" y="212" text-anchor="middle" class="rt">MENTIONED_IN</text>
+  </svg>
+  </div>
+</section>
+
+<!-- ============================ 5. RETRIEVAL ============================ -->
+<section id="retrieval">
+  <h2><span class="num">5</span> Hybrid Retrieval Strategy (Vector + Graph)</h2>
+  <p class="lead">Vector search alone fails for multi-hop questions such as <i>"Which teams are affected if the payment gateway's auth service fails, and what SOP applies?"</i>
+    The graph answers the <i>relationship</i> part. Vector and BM25 search find the <i>content</i>.</p>
+  <div class="grid g4">
+    <div class="card"><h4>① Vector Search</h4><p>Dense similarity in ChromaDB, top-20, with metadata <code>where</code> filters.</p><span class="pill t">semantic</span></div>
+    <div class="card"><h4>② Keyword (BM25)</h4><p>Exact matches for IDs, error codes and product names that embeddings miss.</p><span class="pill t">lexical</span></div>
+    <div class="card"><h4>③ Graph Traversal</h4><p>Entity linking on the query → 1–2 hop Cypher expansion → related entities + linked chunks.</p><span class="pill t">multi-hop</span></div>
+    <div class="card"><h4>④ Fuse + Re-rank</h4><p>Reciprocal Rank Fusion, then cross-encoder (e.g. <code>bge-reranker</code>) → top-5 with scores.</p><span class="pill t">precision</span></div>
+  </div>
+<pre style="margin-top:16px"><span class="c"># retrieval/hybrid.py  (conceptual)</span>
+<span class="k">def</span> hybrid_search(query, filters=<span class="k">None</span>, k=<span class="str">5</span>):
+    vec   = chroma.query(embed(query), n_results=<span class="str">20</span>, where=filters)
+    kw    = bm25.search(query, top_n=<span class="str">20</span>)
+    ents  = entity_linker(query)                       <span class="c"># ["Payment Gateway", "Auth Service"]</span>
+    graph = neo4j.run(<span class="str">"MATCH (e)-[r*1..2]-(n) WHERE e.name IN $ents RETURN e,r,n"</span>, ents=ents)
+    fused = reciprocal_rank_fusion([vec, kw, graph_to_chunks(graph)], k=<span class="str">60</span>)
+    return cross_encoder.rerank(query, fused)[:k]      <span class="c"># each hit -> {text, source, page, score}</span></pre>
+</section>
+
+<!-- ============================ 6. AGENT ============================ -->
+<section id="agent">
+  <h2><span class="num">6</span> LangGraph Agent Workflow</h2>
+  <p class="lead">A state machine with conditional edges: route → retrieve and/or use tools → generate → self-check → guard.
+    Shared <code>AgentState</code> carries messages, retrieved docs, tool results, citations and retry count.</p>
+  <div class="diagram">
+  <svg viewBox="0 0 1100 380" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="la" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4b5b6b"/></marker></defs>
+    <style>
+      .nd{rx:9;stroke-width:1.7}.nl{font-size:12.5px;font-weight:700;fill:#1d2733}.ns{font-size:10px;fill:#5b6876}
+      .le{fill:none;stroke:#4b5b6b;stroke-width:1.6;marker-end:url(#la)}.ld{fill:none;stroke:#4b5b6b;stroke-width:1.4;stroke-dasharray:5 4;marker-end:url(#la)}
+      .lt{font-size:10.5px;fill:#4b5b6b;font-style:italic}
+    </style>
+    <rect x="40" y="160" width="80" height="40" rx="20" fill="#1d2733"/><text x="80" y="185" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">START</text>
+    <rect x="150" y="160" width="120" height="40" class="nd" fill="#eaf7ee" stroke="#3c9a5f"/><text x="210" y="178" text-anchor="middle" class="nl">input_guard</text><text x="210" y="192" text-anchor="middle" class="ns">validate · PII · injection</text>
+    <rect x="300" y="160" width="120" height="40" class="nd" fill="#f3ecfb" stroke="#8a5cc2"/><text x="360" y="178" text-anchor="middle" class="nl">route_query</text><text x="360" y="192" text-anchor="middle" class="ns">intent + model tier</text>
+    <rect x="460" y="60" width="120" height="40" class="nd" fill="#e6f6f7" stroke="#23959b"/><text x="520" y="78" text-anchor="middle" class="nl">retrieve</text><text x="520" y="92" text-anchor="middle" class="ns">hybrid search</text>
+    <rect x="620" y="60" width="120" height="40" class="nd" fill="#e6f6f7" stroke="#23959b"/><text x="680" y="78" text-anchor="middle" class="nl">rerank</text><text x="680" y="92" text-anchor="middle" class="ns">cross-encoder</text>
+    <rect x="460" y="260" width="120" height="40" class="nd" fill="#f3ecfb" stroke="#8a5cc2"/><text x="520" y="278" text-anchor="middle" class="nl">agent</text><text x="520" y="292" text-anchor="middle" class="ns">ReAct reasoning</text>
+    <rect x="620" y="260" width="120" height="40" class="nd" fill="#f3ecfb" stroke="#8a5cc2"/><text x="680" y="278" text-anchor="middle" class="nl">tools</text><text x="680" y="292" text-anchor="middle" class="ns">web · sql · python · mcp</text>
+    <rect x="780" y="160" width="120" height="40" class="nd" fill="#fff4e5" stroke="#d98a1c"/><text x="840" y="178" text-anchor="middle" class="nl">generate</text><text x="840" y="192" text-anchor="middle" class="ns">answer + citations</text>
+    <rect x="930" y="160" width="140" height="40" class="nd" fill="#eaf7ee" stroke="#3c9a5f"/><text x="1000" y="178" text-anchor="middle" class="nl">hallucination_check</text><text x="1000" y="192" text-anchor="middle" class="ns">grounded? relevant?</text>
+    <rect x="930" y="250" width="140" height="40" class="nd" fill="#eaf7ee" stroke="#3c9a5f"/><text x="1000" y="268" text-anchor="middle" class="nl">output_guard</text><text x="1000" y="282" text-anchor="middle" class="ns">PII · toxicity · policy</text>
+    <rect x="960" y="320" width="80" height="36" rx="18" fill="#1d2733"/><text x="1000" y="343" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">END</text>
+
+    <path class="le" d="M120,180 H148"/>
+    <path class="le" d="M270,180 H298"/>
+    <path class="le" d="M420,172 C440,172 440,80 458,80"/><text x="400" y="118" class="lt">knowledge Q</text>
+    <path class="le" d="M420,188 C440,188 440,280 458,280"/><text x="380" y="250" class="lt">needs data / action</text>
+    <path class="le" d="M580,80 H618"/>
+    <path class="le" d="M740,80 C760,80 760,170 778,170"/>
+    <path class="le" d="M580,274 H618"/>
+    <path class="le" d="M620,288 H582"/>
+    <path class="ld" d="M520,258 V102"/><text x="526" y="180" class="lt">retrieve as tool</text>
+    <path class="le" d="M520,300 V340 H840 V202"/><text x="640" y="334" class="lt">tool results</text>
+    <path class="le" d="M900,180 H928"/>
+    <path class="le" d="M1000,200 V248"/><text x="1006" y="230" class="lt">pass</text>
+    <path class="le" d="M1000,290 V318"/>
+    <path class="ld" d="M1000,160 V25 H520 V58"/><text x="700" y="20" class="lt">fail → rewrite query &amp; retry (max 2), else answer "insufficient evidence"</text>
+    <text x="150" y="226" class="lt">blocked → safe refusal → END</text>
+  </svg>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <h4>Tools</h4>
+      <table>
+        <tr><th>Tool</th><th>Purpose</th><th>Safety control</th></tr>
+        <tr><td>Web Search</td><td>Public / recent info (e.g. Tavily, DuckDuckGo)</td><td>Domain allow-list, result size cap</td></tr>
+        <tr><td>SQL Query</td><td>Products, users, transactions tables</td><td>Read-only connection, SELECT-only parser, row limit</td></tr>
+        <tr><td>Python Execution</td><td>Calculations, data analysis, charts</td><td>Sandboxed subprocess, timeout, no network / FS write</td></tr>
+        <tr><td>MCP Integrations</td><td>Standardised access to external systems (ticketing, wiki, file stores)</td><td>Per-server scopes, audit log</td></tr>
+        <tr><td>Knowledge Retrieval</td><td>Hybrid RAG exposed as a tool for multi-step plans</td><td>Metadata filters, top-k cap</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h4>Agent State</h4>
+<pre><span class="k">class</span> AgentState(TypedDict):
+    session_id:   str
+    messages:     list[BaseMessage]   <span class="c"># session memory</span>
+    query:        str                 <span class="c"># sanitized</span>
+    route:        Literal[<span class="str">"rag"</span>,<span class="str">"agent"</span>,<span class="str">"direct"</span>]
+    model_tier:   Literal[<span class="str">"fast"</span>,<span class="str">"strong"</span>]
+    documents:    list[Document]
+    tool_results: list[dict]
+    answer:       str
+    citations:    list[Citation]
+    grounded:     bool
+    retries:      int
+    guard_flags:  list[str]</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 7. GUARDRAILS ============================ -->
+<section id="guard">
+  <h2><span class="num">7</span> Multi-Layered Guardrails</h2>
+  <p class="lead">Defence in depth: checks run before the LLM, during agent execution, and after generation. Every block or redaction is logged to Langfuse as a scored event.</p>
+  <table>
+    <tr><th>Layer</th><th>Check</th><th>Technique</th><th>Action on failure</th></tr>
+    <tr><td><span class="pill g">Input</span></td><td>Input validation</td><td>Pydantic schema, length / charset limits, empty / garbage detection</td><td>400 with reason</td></tr>
+    <tr><td><span class="pill g">Input</span></td><td>Prompt-injection / jailbreak</td><td>Heuristic patterns + classifier (e.g. LLM-Guard / small LLM judge)</td><td>Refuse, flag trace</td></tr>
+    <tr><td><span class="pill g">Input</span></td><td>PII detection &amp; masking</td><td>Microsoft Presidio (email, phone, SSN, card, names) → placeholder tokens</td><td>Mask before LLM / logging</td></tr>
+    <tr><td><span class="pill g">Input</span></td><td>Topic / policy scope</td><td>Allowed-domain classifier (enterprise knowledge only)</td><td>Polite out-of-scope reply</td></tr>
+    <tr><td><span class="pill p">Execution</span></td><td>Tool safety</td><td>SELECT-only SQL, sandboxed Python, web allow-list, max agent steps</td><td>Abort tool call</td></tr>
+    <tr><td><span class="pill o">Generation</span></td><td>Hallucination check</td><td>LLM-as-judge faithfulness vs. retrieved context + citation presence</td><td>Retry with rewritten query, or "insufficient evidence"</td></tr>
+    <tr><td><span class="pill g">Output</span></td><td>PII leakage</td><td>Presidio re-scan of the final answer</td><td>Redact</td></tr>
+    <tr><td><span class="pill g">Output</span></td><td>Toxicity / unsafe content</td><td>Moderation model / classifier</td><td>Replace with safe response</td></tr>
+    <tr><td><span class="pill g">Output</span></td><td>Policy &amp; format compliance</td><td>Citations required, JSON schema, no secrets / internal prompts</td><td>Regenerate / fix format</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 8. INFRA ============================ -->
+<section id="infra">
+  <h2><span class="num">8</span> Production Infrastructure</h2>
+  <div class="grid g3">
+    <div class="card accent">
+      <h4>FastAPI Serving</h4>
+      <ul>
+        <li><code>POST /chat</code> — main Q&amp;A endpoint</li>
+        <li><code>POST /ingest</code> — (re)index the corpus</li>
+        <li><code>GET /health</code> — liveness / dependency checks</li>
+        <li><code>GET /sessions/{id}</code> — conversation history</li>
+        <li>Async handlers, Pydantic models, Uvicorn workers</li>
+      </ul>
+    </div>
+    <div class="card accent">
+      <h4>Semantic Caching</h4>
+      <ul>
+        <li>Embed the query, then nearest-neighbour lookup in the cache collection</li>
+        <li>Hit if cosine similarity ≥ 0.92 and corpus version matches</li>
+        <li>TTL plus invalidation on re-ingest</li>
+        <li>Only answers that pass the guardrails are cached</li>
+      </ul>
+    </div>
+    <div class="card accent">
+      <h4>Model Routing</h4>
+      <ul>
+        <li><b>Fast / cheap model</b>: classification, simple FAQ, grading</li>
+        <li><b>Strong model</b>: multi-hop, agentic, long-context synthesis</li>
+        <li>Fallback to a secondary provider on errors / timeouts</li>
+        <li>Cost per request tracked in Langfuse</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>API Contract — <code>POST /chat</code></h3>
+  <div class="grid g2">
+<pre><span class="c">// Request</span>
+{
+  <span class="k">"session_id"</span>: <span class="str">"a1b2c3"</span>,
+  <span class="k">"query"</span>: <span class="str">"Which services depend on Auth Service and what is the SOP for an outage?"</span>,
+  <span class="k">"filters"</span>: { <span class="k">"department"</span>: <span class="str">"engineering"</span> }
+}</pre>
+<pre><span class="c">// Response</span>
+{
+  <span class="k">"answer"</span>: <span class="str">"Payment Gateway and Order API depend on Auth Service [1][2]. Follow SOP-OPS-014 ... [3]"</span>,
+  <span class="k">"citations"</span>: [{ <span class="k">"id"</span>: <span class="str">1</span>, <span class="k">"source"</span>: <span class="str">"graph:Auth Service"</span> },
+                { <span class="k">"id"</span>: <span class="str">3</span>, <span class="k">"source"</span>: <span class="str">"sop_ops_014.pdf"</span>, <span class="k">"page"</span>: <span class="str">2</span> }],
+  <span class="k">"route"</span>: <span class="str">"rag+graph"</span>, <span class="k">"model"</span>: <span class="str">"strong"</span>, <span class="k">"cached"</span>: <span class="k">false</span>,
+  <span class="k">"guardrails"</span>: { <span class="k">"input"</span>: <span class="str">"pass"</span>, <span class="k">"grounded"</span>: <span class="k">true</span>, <span class="k">"output"</span>: <span class="str">"pass"</span> },
+  <span class="k">"trace_id"</span>: <span class="str">"lf-7f3a..."</span>, <span class="k">"latency_ms"</span>: <span class="str">2140</span>
+}</pre>
+  </div>
+
+  <h3>Deployment View</h3>
+  <div class="diagram">
+  <svg viewBox="0 0 1100 200" xmlns="http://www.w3.org/2000/svg">
+    <defs><marker id="da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#4b5b6b"/></marker></defs>
+    <style>.c{rx:10;stroke-width:1.6}.ct{font-size:13px;font-weight:700;fill:#1d2733}.cs{font-size:10.5px;fill:#5b6876}.de{stroke:#4b5b6b;stroke-width:1.5;fill:none;marker-end:url(#da)}</style>
+    <rect x="10" y="20" width="1080" height="170" rx="14" fill="none" stroke="#9aa7b4" stroke-dasharray="6 4"/>
+    <text x="24" y="40" font-size="11.5" font-weight="700" fill="#6b7684" letter-spacing=".08em">DOCKER COMPOSE (single host — distributed infra is out of scope)</text>
+    <rect x="40" y="70" width="170" height="90" class="c" fill="#e8f1fb" stroke="#4a7fb5"/><text x="125" y="105" text-anchor="middle" class="ct">api</text><text x="125" y="123" text-anchor="middle" class="cs">FastAPI + LangGraph</text><text x="125" y="138" text-anchor="middle" class="cs">Uvicorn</text>
+    <rect x="260" y="70" width="150" height="90" class="c" fill="#e6f6f7" stroke="#23959b"/><text x="335" y="105" text-anchor="middle" class="ct">chromadb</text><text x="335" y="123" text-anchor="middle" class="cs">vectors + cache</text>
+    <rect x="440" y="70" width="150" height="90" class="c" fill="#e6f6f7" stroke="#23959b"/><text x="515" y="105" text-anchor="middle" class="ct">neo4j</text><text x="515" y="123" text-anchor="middle" class="cs">knowledge graph</text>
+    <rect x="620" y="70" width="150" height="90" class="c" fill="#e6f6f7" stroke="#23959b"/><text x="695" y="105" text-anchor="middle" class="ct">sqlite / postgres</text><text x="695" y="123" text-anchor="middle" class="cs">structured data</text>
+    <rect x="800" y="70" width="130" height="90" class="c" fill="#eef0f3" stroke="#6b7684"/><text x="865" y="105" text-anchor="middle" class="ct">langfuse</text><text x="865" y="123" text-anchor="middle" class="cs">cloud or self-host</text>
+    <rect x="955" y="70" width="120" height="90" class="c" fill="#fff4e5" stroke="#d98a1c"/><text x="1015" y="105" text-anchor="middle" class="ct">LLM APIs</text><text x="1015" y="123" text-anchor="middle" class="cs">external</text>
+    <path class="de" d="M210,100 H258"/>
+    <path class="de" d="M210,115 C330,180 420,170 515,162"/>
+    <path class="de" d="M210,130 C400,195 600,190 695,162"/>
+  </svg>
+  </div>
+</section>
+
+<!-- ============================ 9. OBS & EVAL ============================ -->
+<section id="eval">
+  <h2><span class="num">9</span> Observability &amp; Evaluation</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h4>🔭 Langfuse Observability</h4>
+      <ul>
+        <li>One trace per request; spans for guardrails, cache, router, retrieval, rerank, tools, LLM calls</li>
+        <li>Tracks <b>latency</b> (per span and P50/P95), <b>token usage</b>, <b>cost</b>, <b>errors</b></li>
+        <li>Scores attached: guardrail flags, faithfulness, user feedback</li>
+        <li>Prompt versioning; dashboards and screenshots for the deliverables</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>🧪 Promptfoo Test Suite (30+ cases)</h4>
+      <ul>
+        <li>Factual RAG Q&amp;A with expected facts / citations (<code>contains</code>, <code>llm-rubric</code>)</li>
+        <li>Multi-hop graph questions</li>
+        <li>Tool-use cases (SQL aggregates, calculations, web)</li>
+        <li>Adversarial: injection, jailbreak, PII extraction, off-topic</li>
+        <li>Runs as a regression suite in CI; failures analysed per category</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>📊 RAGAS Evaluation</h4>
+      <table>
+        <tr><th>Metric</th><th>Measures</th><th>Target</th></tr>
+        <tr><td>Faithfulness</td><td>Answer supported by context</td><td>≥ 0.85</td></tr>
+        <tr><td>Answer relevance</td><td>Answer addresses the question</td><td>≥ 0.85</td></tr>
+        <tr><td>Context precision</td><td>Retrieved chunks are relevant</td><td>≥ 0.80</td></tr>
+        <tr><td>Context recall</td><td>All needed info was retrieved</td><td>≥ 0.80</td></tr>
+      </table>
+      <p style="font-size:12.5px;color:var(--muted);margin:8px 0 0">Compare: vector-only vs. hybrid vs. hybrid + re-rank (ablation).</p>
+    </div>
+    <div class="card">
+      <h4>🛡️ Safety Scorecard &amp; ⏱️ Performance</h4>
+      <table>
+        <tr><th>Category</th><th>Metric</th></tr>
+        <tr><td>Prompt injection</td><td>Block rate (% of adversarial prompts stopped)</td></tr>
+        <tr><td>PII</td><td>Detection recall, leakage count</td></tr>
+        <tr><td>Hallucination</td><td>% ungrounded answers caught</td></tr>
+        <tr><td>Toxicity / off-topic</td><td>Refusal accuracy, false-positive rate</td></tr>
+        <tr><td>Latency</td><td>P50 / P95 for cache hit vs. miss</td></tr>
+        <tr><td>Throughput</td><td>Requests/sec under load (Locust / k6)</td></tr>
+        <tr><td>Caching</td><td>Hit rate, latency &amp; cost savings</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 10. STACK ============================ -->
+<section id="stack">
+  <h2><span class="num">10</span> Technology Stack</h2>
+  <table>
+    <tr><th>Layer</th><th>Technology</th><th>Notes</th></tr>
+    <tr><td>Language / env</td><td>Python 3.11, venv, <code>.env</code> config</td><td>Task 0</td></tr>
+    <tr><td>API</td><td><b>FastAPI</b>, Pydantic, Uvicorn</td><td>Required by scenario</td></tr>
+    <tr><td>Orchestration</td><td><b>LangGraph</b> (+ LangChain components)</td><td>Required by scenario</td></tr>
+    <tr><td>Vector DB</td><td><b>ChromaDB</b></td><td>Required by scenario</td></tr>
+    <tr><td>Graph DB</td><td><b>Neo4j</b></td><td>Required by scenario</td></tr>
+    <tr><td>Keyword search</td><td>rank_bm25</td><td>Suggested</td></tr>
+    <tr><td>Re-ranker</td><td>Cross-encoder (bge-reranker / ms-marco) or Cohere Rerank</td><td>Suggested</td></tr>
+    <tr><td>LLMs</td><td>Fast + strong models (e.g. GPT-4o-mini / GPT-4o, or Gemini Flash / Pro)</td><td>Behind the model router</td></tr>
+    <tr><td>Structured data</td><td>SQLite (dev) / Postgres</td><td>Suggested</td></tr>
+    <tr><td>Tools</td><td>Tavily / DuckDuckGo search, sandboxed Python REPL, MCP client</td><td>Suggested</td></tr>
+    <tr><td>Guardrails</td><td>Microsoft Presidio, LLM-Guard / custom classifiers, LLM-as-judge</td><td>Suggested</td></tr>
+    <tr><td>Observability</td><td><b>Langfuse</b></td><td>Required by scenario</td></tr>
+    <tr><td>Testing / eval</td><td><b>Promptfoo</b>, <b>RAGAS</b>, Locust, pytest</td><td>Required by scenario (Locust suggested)</td></tr>
+    <tr><td>Packaging</td><td>Docker Compose</td><td>Suggested</td></tr>
+  </table>
+</section>
+
+<!-- ============================ 11. TRACEABILITY ============================ -->
+<section id="trace">
+  <h2><span class="num">11</span> Requirements Traceability</h2>
+  <div class="grid g2">
+    <table>
+      <tr><th>Functional requirement</th><th>Component</th></tr>
+      <tr><td>Natural-language Q&amp;A</td><td>FastAPI <code>/chat</code> + LangGraph</td></tr>
+      <tr><td>Hybrid retrieval (vector + graph)</td><td>ChromaDB + BM25 + Neo4j, RRF</td></tr>
+      <tr><td>Re-ranking</td><td>Cross-encoder re-ranker</td></tr>
+      <tr><td>Agent-based tool execution</td><td>LangGraph agent + tool node</td></tr>
+      <tr><td>Source citations</td><td>Generator citation schema + output guard</td></tr>
+      <tr><td>Multi-step reasoning</td><td>ReAct loop, retry-on-ungrounded</td></tr>
+      <tr><td>Session-based interaction</td><td>Session store / LangGraph checkpointer</td></tr>
+    </table>
+    <table>
+      <tr><th>Non-functional requirement</th><th>Mechanism</th></tr>
+      <tr><td>Low latency</td><td>Semantic cache, fast-model routing, async I/O</td></tr>
+      <tr><td>High accuracy &amp; faithfulness</td><td>Re-ranking, hallucination check, RAGAS gates</td></tr>
+      <tr><td>Scalable API</td><td>Stateless FastAPI workers, external stores</td></tr>
+      <tr><td>Observability with tracing</td><td>Langfuse spans on every node</td></tr>
+      <tr><td>Secure sensitive data</td><td>Presidio masking in &amp; out, read-only tools</td></tr>
+      <tr><td>Cost-efficient model usage</td><td>Model router, cache, token tracking</td></tr>
+    </table>
+  </div>
+  <div class="callout warn"><b>Out of scope</b> (per scenario): full frontend application, enterprise authentication, distributed large-scale infrastructure, model pre-training.</div>
+</section>
+
+<!-- ============================ 12. STRUCTURE ============================ -->
+<section id="structure">
+  <h2><span class="num">12</span> Proposed Project Structure</h2>
+<pre>Enterprise-Knowledge-AI-Assistant/
+├── app/
+│   ├── main.py                 <span class="c"># FastAPI app, routes: /chat /ingest /health</span>
+│   ├── config.py               <span class="c"># settings from .env</span>
+│   ├── schemas.py              <span class="c"># Pydantic request/response models</span>
+│   ├── sessions.py             <span class="c"># session memory</span>
+│   ├── cache.py                <span class="c"># semantic cache</span>
+│   ├── routing.py              <span class="c"># model router</span>
+│   ├── ingestion/              <span class="c"># loaders, cleaning, metadata, chunking, embeddings</span>
+│   ├── graph/                  <span class="c"># entity/relation extraction, Neo4j client</span>
+│   ├── retrieval/              <span class="c"># vector, bm25, graph, fusion, reranker</span>
+│   ├── agent/                  <span class="c"># LangGraph state, nodes, graph builder</span>
+│   │   └── tools/              <span class="c"># web_search, sql_query, python_exec, mcp_client</span>
+│   ├── guardrails/             <span class="c"># input, pii, injection, hallucination, output</span>
+│   └── observability/          <span class="c"># Langfuse setup & decorators</span>
+├── data/
+│   ├── raw/                    <span class="c"># dummy PDFs, MD, FAQ, CSV</span>
+│   └── processed/
+├── eval/
+│   ├── promptfoo/              <span class="c"># promptfooconfig.yaml (30+ cases)</span>
+│   ├── ragas/                  <span class="c"># test set + evaluation script + report</span>
+│   ├── safety/                 <span class="c"># adversarial prompts + scorecard</span>
+│   └── load/                   <span class="c"># locustfile.py</span>
+├── docs/                       <span class="c"># architecture.html, screenshots, walkthrough</span>
+├── tests/                      <span class="c"># pytest unit tests</span>
+├── docker-compose.yml
+├── requirements.txt
+├── .env.example
+└── README.md</pre>
+</section>
+
+<!-- ============================ 13. ROADMAP ============================ -->
+<section id="roadmap">
+  <h2><span class="num">13</span> Implementation Plan &amp; Deliverables</h2>
+  <table>
+    <tr><th>Task</th><th>Goal</th><th>Key steps</th><th>Component</th></tr>
+    <tr><td>0</td><td>Project setup</td><td>venv, dependencies, <code>.env</code>, folders</td><td>Repo skeleton</td></tr>
+    <tr><td>1</td><td>Data ingestion &amp; preprocessing</td><td>Load PDFs/text, clean, extract metadata, store</td><td><code>app/ingestion</code></td></tr>
+    <tr><td>2</td><td>Vector indexing</td><td>Chunk, embed, store in ChromaDB, validate</td><td>ChromaDB</td></tr>
+    <tr><td>3</td><td>Knowledge graph</td><td>Extract entities/relations, build Neo4j, validate queries</td><td><code>app/graph</code></td></tr>
+    <tr><td>4</td><td>Hybrid retrieval</td><td>Vector search, graph traversal, merge, re-rank</td><td><code>app/retrieval</code></td></tr>
+    <tr><td>5</td><td>LangGraph agent</td><td>Workflow, tool selection, multi-step reasoning (web, query, Python)</td><td><code>app/agent</code></td></tr>
+    <tr><td>6</td><td>Guardrails</td><td>Input validation, injection, PII, hallucination, output filter</td><td><code>app/guardrails</code></td></tr>
+    <tr><td>7</td><td>FastAPI backend</td><td><code>/chat</code>, sessions, pipeline integration, structured responses</td><td><code>app/main.py</code></td></tr>
+    <tr><td>8</td><td>Observability</td><td>Tracing, latency, token usage, errors</td><td>Langfuse</td></tr>
+    <tr><td>9</td><td>Prompt testing</td><td>30+ cases, expected outputs, regression, failure analysis</td><td>Promptfoo</td></tr>
+    <tr><td>10</td><td>RAGAS evaluation</td><td>Faithfulness, answer relevance, context precision/recall</td><td>RAGAS</td></tr>
+    <tr><td>11</td><td>Safety evaluation</td><td>Adversarial prompts, measure failures, scorecard</td><td>Safety suite</td></tr>
+    <tr><td>12</td><td>Performance &amp; load</td><td>Latency, caching, throughput</td><td>Locust</td></tr>
+    <tr><td>13</td><td>Deployment &amp; docs</td><td>Organize project, document architecture, final outputs</td><td>Docker, docs</td></tr>
+  </table>
+
+  <h3>Deliverables Checklist</h3>
+  <div class="grid g3">
+    <div class="card"><ul>
+      <li>☐ GitHub repository (working application)</li>
+      <li>☐ Documentation: Overview, Architecture, Solution Approach, Stepwise Solution</li>
+      <li>☐ Hybrid RAG implementation</li>
+    </ul></div>
+    <div class="card"><ul>
+      <li>☐ LangGraph agent workflow</li>
+      <li>☐ Guardrails implementation</li>
+      <li>☐ Langfuse tracing screenshots</li>
+    </ul></div>
+    <div class="card"><ul>
+      <li>☐ Promptfoo test suite (30+ cases)</li>
+      <li>☐ RAGAS evaluation report</li>
+      <li>☐ Safety scorecard</li>
+    </ul></div>
+  </div>
+
+  <h3>Final Walkthrough Outline</h3>
+  <div class="flow">
+    <div class="step"><span class="n">1</span><b>Business problem</b></div>
+    <div class="step"><span class="n">2</span><b>System architecture</b></div>
+    <div class="step"><span class="n">3</span><b>Retrieval strategy</b><small>vector + graph</small></div>
+    <div class="step"><span class="n">4</span><b>Agent workflow</b></div>
+    <div class="step"><span class="n">5</span><b>Guardrails</b></div>
+    <div class="step"><span class="n">6</span><b>Evaluation results</b></div>
+    <div class="step"><span class="n">7</span><b>Observability insights</b></div>
+    <div class="step"><span class="n">8</span><b>Challenges &amp; improvements</b></div>
+  </div>
+  <div class="callout">Evaluation rubric: Architecture Design · Retrieval Quality · Agent Workflow · Guardrails Implementation · Testing &amp; Evaluation · Production Readiness · Documentation.</div>
+</section>
+
+</main>
+<footer>Enterprise Knowledge AI Assistant · Architecture Document · Based on "GenAI Module 14 Capstone Scenario"</footer>
+</body>
+</html>
